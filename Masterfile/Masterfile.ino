@@ -27,7 +27,7 @@ float Offset = 0.497419; //difference between plane of rotation Earth, relative 
 int Interval = 128; //define amount of updates per day
 float DeltaT = DayPerRev/Interval;
 float Amp = (sin(DayPerRev/4*AVMoon)*cos(Offset)); //Calculates the Amplitude of the sinewave
-float moonAgeSideReal = 0;
+float moonTime = 0;
 
 // limit switch
 ezButton limitSwitch(7);  // create ezButton object on pin 7
@@ -160,8 +160,8 @@ void loop() {
       dateTime.trim();
       if(checkForCurruptData(dateTime)){
         Serial.println("Correct date and time received: " + dateTime);
-        moonAgeSideReal = timeToSideReal(dateTime);
-        Serial.println("moonAgeSideReal: " + String(moonAgeSideReal));
+        moonTime = timeToSideReal(dateTime);
+        Serial.println("moonAgeSideReal: " + String(moonTime));
       }
       else{
         Serial.println("Incorrect date and time received: " + dateTime);
@@ -204,19 +204,17 @@ void loop() {
     Serial.println("Start button pressed.");
 
     //Servo code
-  test = test + 1;
-  //moonAgeSideReal = moonAgeSideReal + 1;
-  pos = 28.5 * sin(27.3/test);
+  pos = 28.5 * sin(27.3/moonTime);
   pos = pos +90;
-  Serial.print("moonAgeSideReal: ");
-  Serial.println(moonAgeSideReal);
+  Serial.print("moonTime: ");
+  Serial.println(moonTime);
   Serial.print("pos: ");
   Serial.println((int)pos);
   myservo.write(pos);
 
   //Stepper code
 
-  T = moonAgeSideReal;
+  T = moonTime;
   X1 = -cos(AVMoon*T);
   Y1 = sin(AVMoon*T)*Amp;
 
