@@ -6,7 +6,8 @@ ezButton limitSwitch(7);  // create ezButton object on pin 7
 #define dirPin 2
 #define stepPin 3
 #define motorInterfaceType 1
-#define startButtonPin 8
+#define homeButtonPin 8
+#define startButtonPin 9
 
 // Create a new instance of the AccelStepper class:
 AccelStepper stepper = AccelStepper(motorInterfaceType, stepPin, dirPin);
@@ -14,44 +15,48 @@ AccelStepper stepper = AccelStepper(motorInterfaceType, stepPin, dirPin);
 
 // Start button state
 bool startButtonPressed = false;
+bool homeButtonPressed = false;
+
+int customPosition = 50;
 
 void setup() {
   // Set the maximum speed and acceleration:
   stepper.setMaxSpeed(500);
-  stepper.setAcceleration(500);
   stepper.setSpeed(100);
 
+  pinMode(homeButtonPin, INPUT_PULLUP);
   pinMode(startButtonPin, INPUT_PULLUP);
   Serial.begin(9600);
  
 }
 
 void loop() {
-   Serial.println(stepper.currentPosition());
+   //Serial.println(stepper.currentPosition());
    limitSwitch.loop();
    int limitSwitchPressed = !(limitSwitch.getState());
-   Serial.println(limitSwitchPressed);
+   //Serial.println(limitSwitchPressed);
 
-   if((!startButtonPressed) && (!digitalRead(startButtonPin))) {
-    startButtonPressed = true;
-    Serial.println("Start button pressed.");
+   if((!homeButtonPressed) && (!digitalRead(homeButtonPin))) {
+    homeButtonPressed = true;
+    Serial.println("Home button pressed.");
    }
 
    // Only loop when start button pressed state is true
-   if (startButtonPressed) {
+   if (homeButtonPressed) {
     if (!limitSwitchPressed){
       stepper.setSpeed(100);
       stepper.runSpeed();
     }
     else{
       stepper.setCurrentPosition(0);
-      startButtonPressed = false;
+      homeButtonPressed = false;
       Serial.println("Limit switch pressed.");
     }
    }
-   
-   
-  
-  // Run to target position with set speed and acceleration/deceleration:
-  //stepper.runToPosition();
+
+   if(!digitalRead(startButtonPin)) {
+    Serial.println("Start button pressed.");
+    stepper.moveTo(customPosition);
+    stepper.runToNewPosition(customPosition);
+   }
 }

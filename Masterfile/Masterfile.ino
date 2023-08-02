@@ -28,6 +28,12 @@ float DeltaT = DayPerRev/Interval;
 float Amp = (sin(DayPerRev/4*AVMoon)*cos(Offset)); //Calculates the Amplitude of the sinewave
 int moonAgeSideReal = 0;
 
+// limit switch
+ezButton limitSwitch(7);  // create ezButton object on pin 7
+// Start button state
+#define startButtonPin 8
+bool startButtonPressed = false;
+
 // Wiring:
 
 // GND to ESP32 GND
@@ -185,6 +191,9 @@ void loop() {
   stepper.runToNewPosition(Xsteps);
   OldDegrees = Degrees;
   t= t + 1;
+
+
+  
   
   delay(1000);
 }
