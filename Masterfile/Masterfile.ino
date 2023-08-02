@@ -4,6 +4,7 @@
 #include <Stepper.h>
 #include <AccelStepper.h>
 #include <SoftwareSerial.h>
+#include <neotimer.h>
 
 // Communication between ESP32 and Arduino
 #define DATA_FROM_ESP_PIN 10
@@ -26,7 +27,7 @@ float Offset = 0.497419; //difference between plane of rotation Earth, relative 
 int Interval = 128; //define amount of updates per day
 float DeltaT = DayPerRev/Interval;
 float Amp = (sin(DayPerRev/4*AVMoon)*cos(Offset)); //Calculates the Amplitude of the sinewave
-int moonAgeSideReal = 0;
+float moonAgeSideReal = 0;
 
 // limit switch
 ezButton limitSwitch(7);  // create ezButton object on pin 7
@@ -37,6 +38,8 @@ ezButton limitSwitch(7);  // create ezButton object on pin 7
 
 bool homeButtonPressed = false;
 bool startButtonPressed = false;
+
+Neotimer mytimer = Neotimer(500); 
 
 // Wiring:
 
@@ -142,27 +145,30 @@ void setup() {
   pinMode(homeButtonPin, INPUT_PULLUP);
   pinMode(startButtonPin, INPUT_PULLUP);
 
+  mytimer.set(1000); // set to 1 second
 }
 
 void loop() {
-  // get time
-  // Receive data from ESP32
-  if (mySerial.available()) {
-    String dateTime = mySerial.readString();
-    dateTime.trim();
-    if(checkForCurruptData(dateTime)){
-      Serial.println("Correct date and time received: " + dateTime);
-      moonAgeSideReal = timeToSideReal(dateTime);
-      Serial.println("moonAgeSideReal: " + String(moonAgeSideReal));
-    }
-    else{
-      Serial.println("Incorrect date and time received: " + dateTime);
-    }
-  }
-  else {
-    Serial.println("No data received from ESP32");
-  }
   
+  if(mytimer.repeat()) {
+    // get time
+    // Receive data from ESP32
+    if (mySerial.available()) {
+      String dateTime = mySerial.readString();
+      dateTime.trim();
+      if(checkForCurruptData(dateTime)){
+        Serial.println("Correct date and time received: " + dateTime);
+        moonAgeSideReal = timeToSideReal(dateTime);
+        Serial.println("moonAgeSideReal: " + String(moonAgeSideReal));
+      }
+      else{
+        Serial.println("Incorrect date and time received: " + dateTime);
+      }
+    }
+    else {
+      Serial.println("No data received from ESP32");
+    }
+  }
   
   
   // homing shit
