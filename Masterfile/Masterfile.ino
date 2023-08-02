@@ -141,7 +141,9 @@ void setup() {
   Serial.begin(9600);
   mySerial.begin(115200);
   myservo.attach(4);  // attaches the servo on pin 12 to the servo object
+
   stepper.setMaxSpeed(1000);
+  stepper.setAcceleration(500);
   stepper.setSpeed(20);
 
   pinMode(homeButtonPin, INPUT_PULLUP);
@@ -151,7 +153,7 @@ void setup() {
 }
 
 void loop() {
-  
+  stepper.run();
   if(mytimer.repeat()) {
     // get time
     // Receive data from ESP32
@@ -235,12 +237,7 @@ void loop() {
   Serial.print("Xsteps: ");
   Serial.println(Xsteps);
   stepper.moveTo(Xsteps);
-  stepper.runToNewPosition(Xsteps);
-  OldDegrees = Degrees;
-  t= t + 1;
-
-
-  
+  OldDegrees = Degrees;  
   
   delay(1000);
   }

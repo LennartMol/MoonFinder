@@ -22,6 +22,7 @@ int customPosition = 50;
 void setup() {
   // Set the maximum speed and acceleration:
   stepper.setMaxSpeed(500);
+  stepper.setAcceleration(500);
   stepper.setSpeed(100);
 
   pinMode(homeButtonPin, INPUT_PULLUP);
