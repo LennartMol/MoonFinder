@@ -41,6 +41,8 @@ bool startButtonPressed = false;
 
 Neotimer mytimer = Neotimer(500); 
 
+int test = 0;
+
 // Wiring:
 
 // GND to ESP32 GND
@@ -138,7 +140,7 @@ bool checkForCurruptData(String time){
 void setup() {
   Serial.begin(9600);
   mySerial.begin(115200);
-  //myservo.attach(4);  // attaches the servo on pin 12 to the servo object
+  myservo.attach(4);  // attaches the servo on pin 12 to the servo object
   stepper.setMaxSpeed(1000);
   stepper.setSpeed(20);
 
@@ -202,14 +204,15 @@ void loop() {
     Serial.println("Start button pressed.");
 
     //Servo code
-  moonAgeSideReal = moonAgeSideReal + 1;
-  pos = 28.5 * sin(27.3/moonAgeSideReal);
+  test = test + 1;
+  //moonAgeSideReal = moonAgeSideReal + 1;
+  pos = 28.5 * sin(27.3/test);
   pos = pos +90;
   Serial.print("moonAgeSideReal: ");
   Serial.println(moonAgeSideReal);
   Serial.print("pos: ");
   Serial.println((int)pos);
-  //myservo.write(pos);
+  myservo.write(pos);
 
   //Stepper code
 
