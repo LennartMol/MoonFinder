@@ -31,7 +31,11 @@ int moonAgeSideReal = 0;
 // limit switch
 ezButton limitSwitch(7);  // create ezButton object on pin 7
 // Start button state
-#define startButtonPin 8
+
+#define homeButtonPin 8
+#define startButtonPin 9
+
+bool homeButtonPressed = false;
 bool startButtonPressed = false;
 
 // Wiring:
@@ -134,10 +138,15 @@ void setup() {
   //myservo.attach(4);  // attaches the servo on pin 12 to the servo object
   stepper.setMaxSpeed(1000);
   stepper.setSpeed(20);
+
+  pinMode(homeButtonPin, INPUT_PULLUP);
+  pinMode(startButtonPin, INPUT_PULLUP);
+
 }
 
 void loop() {
-    // Receive data from ESP32
+  // get time
+  // Receive data from ESP32
   if (mySerial.available()) {
     String dateTime = mySerial.readString();
     dateTime.trim();
@@ -153,9 +162,40 @@ void loop() {
   else {
     Serial.println("No data received from ESP32");
   }
+  
+  
+  
+  // homing shit
+
+  //Serial.println(stepper.currentPosition());
+  limitSwitch.loop();
+  int limitSwitchPressed = !(limitSwitch.getState());
+  //Serial.println(limitSwitchPressed);
+
+  if((!homeButtonPressed) && (!digitalRead(homeButtonPin))) {
+  homeButtonPressed = true;
+  Serial.println("Home button pressed.");
+  }
+
+  // Only loop when start button pressed state is true
+  if (homeButtonPressed) {
+  if (!limitSwitchPressed){
+    stepper.setSpeed(100);
+    stepper.runSpeed();
+  }
+  else{
+    stepper.setCurrentPosition(0);
+    homeButtonPressed = false;
+    Serial.println("Limit switch pressed.");
+  }
+  }
 
 
-  //Servo code
+  // start everything
+  if(!digitalRead(startButtonPin)) {
+    Serial.println("Start button pressed.");
+
+    //Servo code
   moonAgeSideReal = moonAgeSideReal + 1;
   pos = 28.5 * sin(27.3/moonAgeSideReal);
   pos = pos +90;
@@ -196,4 +236,5 @@ void loop() {
   
   
   delay(1000);
+  }
 }
