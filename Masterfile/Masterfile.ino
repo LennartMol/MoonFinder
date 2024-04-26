@@ -5,15 +5,10 @@
 #include <AccelStepper.h>
 #include <SoftwareSerial.h>
 #include <neotimer.h>
+#include <TimeLib.h>
 
-// Communication between ESP32 and Arduino
-#define DATA_FROM_ESP_PIN 10
-SoftwareSerial mySerial(DATA_FROM_ESP_PIN, -1); // RX, TX - only RX is used
 
 // Global variables calculations
-const int stepsPerRevolution = 200;// Define number of steps per rotation:
-float DegPerStep = 360.0/stepsPerRevolution; //Calculates how many degrees per step it moves.
-int Xsteps = 0;
 int Degrees = 0;
 int OldDegrees= 0;
 float Angle = 0;
@@ -29,91 +24,69 @@ float DeltaT = DayPerRev/Interval;
 float Amp = (sin(DayPerRev/4*AVMoon)*cos(Offset)); //Calculates the Amplitude of the sinewave
 float moonTime = 0;
 
-// limit switch
-ezButton limitSwitch(7);  // create ezButton object on pin 7
-// Start button state
-
-#define homeButtonPin 8
-#define startButtonPin 9
-
-bool homeButtonPressed = false;
-bool startButtonPressed = false;
-
 Neotimer mytimer = Neotimer(500); 
-
-int test = 0;
 
 // Wiring:
 
+// Communication between ESP32 and Arduino
 // GND to ESP32 GND
 // Pin 10 to ESP32 TX0 (tussen RX0 en D22) 
+#define DATA_FROM_ESP_PIN 10
+SoftwareSerial mySerial(DATA_FROM_ESP_PIN, -1); // RX, TX - only RX is used
 
-// Pin 8 to IN1 on the ULN2003 driver
-// Pin 9 to IN2 on the ULN2003 driver
-// Pin 10 to IN3 on the ULN2003 driver
-// Pin 11 to IN4 on the ULN2003 driver
+// Start button 
+#define startButtonPin 9
+bool startButtonPressed = false;
 
-// Stepper object
-#define dirPin 2
-#define stepPin 3
-#define motorInterfaceType 1
-AccelStepper stepper = AccelStepper(motorInterfaceType, stepPin, dirPin);
+// Servo pins
+#define servoBasePin 5
+#define servoArrowPin 4
 
-// Servo object
-Servo myservo;  
-float pos = 0;    // variable to store the servo position
-float var = 0;
+// Servo base
+Servo servoBase;  
+float posServoBase = 0;    // variable to store the servo position
+
+// Servo arrow
+Servo servoArrow;  
+float posServoArrow = 0;    
 
 // parameter: dateTime in string format
 // format: YYYYMMDDHHMMSS
 // example: date=2022-12-19, time=20:19:14 -> 20221219201914
 float timeToSideReal(String time){
-  // time constants
-  float Psyn = 29.5305888531; // Moon Synodic days (0 to 29.5305888531)
-  float Pyear = 365.2421897; // Period of earth 
-  
-  // weird magic number
-  float magicNumber = -1.211249; 
 
   // get date variables
-  float hours = time.substring(11,13).toFloat();
-  float minutes = time.substring(14,16).toFloat();
-  float seconds = time.substring(17,19).toFloat();
-  float year = time.substring(0,4).toFloat();
+  // float hours = time.substring(11,13).toFloat();
+  // float minutes = time.substring(14,16).toFloat();
+  // float seconds = time.substring(17,19).toFloat();
+
+
+  // t=0 at 20240824000000
+
+  time = "20240824000000"; // 8 april
+  String time_custom = "20240924000000";  // 9 april
+  
+
   float month = time.substring(5,7).toFloat();
   float day = time.substring(8,10).toFloat();
+
+
+  float year = time.substring(0,4).toFloat();
+
+
+  // Set the system time to April 8th, 2024
+  setTime(0, 0, 0, 8, 4, 2024);
   
-  // get time in percentage of 24 hours
-  float timePercentageOf24Hours = (hours+(minutes/60)+(seconds/3600))/24;
+  // Get the current time
+  time_t t = now();
   
-  // arduino shenanigans of converting to julian time
-  float JD1 = (year+4800+(month-14)/12);
-  float JD2 = (month-2-(month-14)/12*12);
-  float JD3 = ((year+4900+(month-14)/12)/100);
+  // Extract the day of the year
+  struct tm *timeinfo;
+  timeinfo = localtime(&t);
+  int day_of_year = timeinfo->tm_yday;  // Day of the year (0 to 365)
   
-  // split JD4 into whole number and decimals into different variables
-  float JD4 = (1461*JD1/4) * 1000;
-  float JD4_whole = floor(JD4 / 1000);
-  
-  unsigned long JD4_long = (1461*JD1/4) * 1000;
-  String JD4_whole_String = String(JD4_long);
-  float JD4_decimals = JD4_whole_String.substring(7,10).toFloat() / 1000;
-  
-  float JD5 = (367*JD2/12);
-  float JD6 = (3*JD3/4);
-  
-  // calculate whole day first to prevent float overflow rounding 
-  float JD_whole = day-32075 + JD4_whole + JD5 - JD6;
-  
-  // subtract julian dates and later add decimals to prevent overflow again
-  float JD = (JD_whole - 2451550.1) + JD4_decimals + timePercentageOf24Hours + magicNumber;
-  
-  // calculate moon age in synodic notation
-  float IP = fmodf((JD / Psyn), 1);
-  float moonAgeSynodic = IP*Psyn;
-  
-  // calculate moon age in side real notation - this is your T
-  float moonAgeSideReal = 1/((1/moonAgeSynodic)+(1/Pyear)); 
+  // Print the day of the year
+  Serial.println(day_of_year);
   
   return moonAgeSideReal;
 }
@@ -140,20 +113,15 @@ bool checkForCurruptData(String time){
 void setup() {
   Serial.begin(9600);
   mySerial.begin(115200);
-  myservo.attach(4);  // attaches the servo on pin 12 to the servo object
+  servoBase.attach(servoBasePin);  
+  servoArrow.attach(servoArrowPin);
 
-  stepper.setMaxSpeed(1000);
-  stepper.setAcceleration(500);
-  stepper.setSpeed(20);
-
-  pinMode(homeButtonPin, INPUT_PULLUP);
   pinMode(startButtonPin, INPUT_PULLUP);
 
   mytimer.set(1000); // set to 1 second
 }
 
 void loop() {
-  stepper.run();
   if(mytimer.repeat()) {
     // get time
     // Receive data from ESP32
@@ -173,48 +141,20 @@ void loop() {
       Serial.println("No data received from ESP32");
     }
   }
-  
-  
-  // homing shit
-
-  //Serial.println(stepper.currentPosition());
-  limitSwitch.loop();
-  int limitSwitchPressed = !(limitSwitch.getState());
-  //Serial.println(limitSwitchPressed);
-
-  if((!homeButtonPressed) && (!digitalRead(homeButtonPin))) {
-  homeButtonPressed = true;
-  Serial.println("Home button pressed.");
-  }
-
-  // Only loop when start button pressed state is true
-  if (homeButtonPressed) {
-  if (!limitSwitchPressed){
-    stepper.setSpeed(100);
-    stepper.runSpeed();
-  }
-  else{
-    stepper.setCurrentPosition(0);
-    homeButtonPressed = false;
-    Serial.println("Limit switch pressed.");
-  }
-  }
 
 
   // start everything
   if(!digitalRead(startButtonPin)) {
     Serial.println("Start button pressed.");
 
-    //Servo code
-  pos = 28.5 * sin(27.3/moonTime);
-  pos = pos +90;
+  //Servo code
+  posServoArrow = 28.5 * sin(27.3/moonTime);
+  posServoArrow = posServoArrow + (270/2);
   Serial.print("moonTime: ");
   Serial.println(moonTime);
-  Serial.print("pos: ");
-  Serial.println((int)pos);
-  myservo.write(pos);
-
-  //Stepper code
+  Serial.print("pos Arrow servo: ");
+  Serial.println((int)posServoArrow);
+  servoArrow.write(posServoArrow);
 
   T = moonTime;
   X1 = -cos(AVMoon*T);
@@ -225,7 +165,16 @@ void loop() {
   Degrees = ((Angle * 4068) / 71) + 180;
 
 
-  Xsteps = (Degrees-OldDegrees)/DegPerStep;
+  Serial.print("pos Base servo (before map): ");
+  Serial.println((int)posServoBase);
+  Degrees = map(Degrees, 0, 360, 0, 270);
+
+
+  posServoBase = Degrees;
+  servoBase.write(posServoBase);
+  Serial.print("pos Base servo: ");
+  Serial.println((int)posServoBase);
+
   Serial.print("T: ");
   Serial.println(T); 
   Serial.print("Y1: ");
@@ -234,9 +183,7 @@ void loop() {
   Serial.println(X1);
   Serial.print("Degrees: ");
   Serial.println(Degrees);
-  Serial.print("Xsteps: ");
-  Serial.println(Xsteps);
-  stepper.moveTo(Xsteps);
+
   OldDegrees = Degrees;  
   
   delay(1000);

@@ -5,8 +5,8 @@
 // ESP32 GND - GND Arduino
 // ESP32 TX0 (tussen RX0 en D22) - 10 Arduino (of zelf ff kiezen en aanpassen in code van Arduino)
 
-const char* ssid       = "paapnet";
-const char* password   = "DenBosch00000";
+const char* ssid       = "Ziggo0581713";
+const char* password   = "EdV6mbpudz3r";
 
 const char* ntpServer1 = "pool.ntp.org";
 const char* ntpServer2 = "time.nist.gov";
