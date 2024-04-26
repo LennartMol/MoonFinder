@@ -50,46 +50,91 @@ float posServoBase = 0;    // variable to store the servo position
 Servo servoArrow;  
 float posServoArrow = 0;    
 
-// parameter: dateTime in string format
-// format: YYYYMMDDHHMMSS
-// example: date=2022-12-19, time=20:19:14 -> 20221219201914
-float timeToSideReal(String time){
-
-  // get date variables
-  // float hours = time.substring(11,13).toFloat();
-  // float minutes = time.substring(14,16).toFloat();
-  // float seconds = time.substring(17,19).toFloat();
-
-
-  // t=0 at 20240824000000
-
-  time = "20240824000000"; // 8 april
-  String time_custom = "20240924000000";  // 9 april
-  
-
-  float month = time.substring(5,7).toFloat();
-  float day = time.substring(8,10).toFloat();
+long convertToJulianDate(String time) {
+  // Extracting components from the input string
+  float year = time.substring(0, 4).toFloat();
+  float month = time.substring(4, 6).toFloat();
+  float day = time.substring(6, 8).toFloat();
+  float hour = time.substring(8, 10).toFloat();
+  float minute = time.substring(10, 12).toFloat();
+  float second = time.substring(12, 14).toFloat();
 
 
-  float year = time.substring(0,4).toFloat();
+  // Creating a tmElements_t structure to hold the date and time
+  tmElements_t dateTime;
+  dateTime.Year = year - 1970; // TimeLib starts from year 1970
+  dateTime.Month = month;
+  dateTime.Day = day;
+  dateTime.Hour = hour;
+  dateTime.Minute = minute;
+  dateTime.Second = second;
+
+  // Convert to Unix time
+  time_t unixTime = makeTime(dateTime);
+
+  // Convert Unix time to Julian date
+  long julianDate = (unixTime / 86400.0) + 2440587.5;
+
+ // Print the result
+  Serial.print("Julian date: ");
+  Serial.println(julianDate);
 
 
-  // Set the system time to April 8th, 2024
-  setTime(0, 0, 0, 8, 4, 2024);
-  
-  // Get the current time
-  time_t t = now();
-  
-  // Extract the day of the year
-  struct tm *timeinfo;
-  timeinfo = localtime(&t);
-  int day_of_year = timeinfo->tm_yday;  // Day of the year (0 to 365)
-  
-  // Print the day of the year
-  Serial.println(day_of_year);
-  
-  return moonAgeSideReal;
+
+  return julianDate;
 }
+
+float convertToFractionTime(String time) {
+  float hours = time.substring(8, 10).toFloat();
+  float minutes = time.substring(10, 12).toFloat();
+  float seconds = time.substring(12, 14).toFloat();
+
+  long hoursInSeconds = (long)hours * 3600L;
+
+  long minutesInSeconds = (long)minutes * 60L;
+
+  long totalSeconds = hoursInSeconds + minutesInSeconds + seconds;
+
+  long totalSecondsInDay = 24L * 3600L;
+
+  float fraction = (float)totalSeconds / (float)totalSecondsInDay;
+
+  // Print the result
+  Serial.print("Fraction of the day: ");
+  Serial.println(fraction, 6);
+
+  return fraction;
+}
+
+float calculateTFromHolyTime(String datetime) {
+  String HeiligeJulianDate = "2024040812200";
+  String date = datetime;
+  long current = convertToJulianDate(datetime);
+  float currentT = convertToFractionTime(datetime);
+  long holy = convertToJulianDate(HeiligeJulianDate);
+  float holyT = convertToFractionTime(HeiligeJulianDate);
+  int dif = current - holy;
+  if (currentT < holyT) {
+    currentT += 1;
+  }
+  float difT = currentT - holyT;
+  Serial.print("Difference in days: ");
+  Serial.println(dif);
+  Serial.print("Difference in time: ");
+  Serial.println(difT, 6);
+
+  // add the day and time difference 
+  float result = dif + difT;
+
+  // use modula 27.3 to get the result
+  result = fmod(result, 27.3);
+  Serial.print("T: ");
+  Serial.println(result, 6);
+
+  return result;
+}
+
+
 
 // parameter: dateTime in string format
 // format: YYYYMMDDHHMMSS
@@ -122,15 +167,17 @@ void setup() {
 }
 
 void loop() {
+
   if(mytimer.repeat()) {
     // get time
     // Receive data from ESP32
     if (mySerial.available()) {
       String dateTime = mySerial.readString();
       dateTime.trim();
+      //dateTime = "20250106122000";
       if(checkForCurruptData(dateTime)){
         Serial.println("Correct date and time received: " + dateTime);
-        moonTime = timeToSideReal(dateTime);
+        moonTime = calculateTFromHolyTime(dateTime);
         Serial.println("moonAgeSideReal: " + String(moonTime));
       }
       else{
@@ -147,6 +194,8 @@ void loop() {
   if(!digitalRead(startButtonPin)) {
     Serial.println("Start button pressed.");
 
+  
+  
   //Servo code
   posServoArrow = 28.5 * sin(27.3/moonTime);
   posServoArrow = posServoArrow + (270/2);
